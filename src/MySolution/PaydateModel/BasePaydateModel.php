@@ -30,7 +30,7 @@ abstract class BasePaydateModel {
     $isInitialWeekDay = $this->isDateWeekDay($date);
     // same deal for holiday, decrement
     $isInitialHoliday = $this->isHoliDay($date);
-
+;
     // we're fine.
     if ($isInitialWeekDay && !$isInitialHoliday) {
       return $date;
@@ -42,7 +42,7 @@ abstract class BasePaydateModel {
       $nextDate = $this->wriggleDate($date, '+1 weekday');
       // don't want a 2 steps forward one step back infinite loop so we keep going forward
       // this may or may not be a mistaken assumption.
-      while ($this->isHoliDay($nextDate)) {
+      while ($this->isHoliDay($nextDate) || !$this->isDateWeekDay($nextDate)) {
         $nextDate = $this->wriggleDate($nextDate, '+1 weekday');
       }
       return $nextDate;
@@ -54,7 +54,7 @@ abstract class BasePaydateModel {
       do {
         $nextDate = $this->wriggleDate($date, '-1 weekday');
       }
-      while ($this->isHoliDay($nextDate));
+      while ($this->isHoliDay($nextDate) || !$this->isDateWeekDay($nextDate));
       return $nextDate;
     }
   }
@@ -66,7 +66,7 @@ abstract class BasePaydateModel {
    * @return bool
    */
   protected function isDateWeekDay(string $date): bool {
-    return !(in_array(date('w', strtotime($date)), [0, 6], true));
+    return !(in_array((int)date('w', strtotime($date)), [0, 6], true));
   }
 
   /**
