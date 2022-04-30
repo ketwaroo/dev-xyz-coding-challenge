@@ -26,7 +26,7 @@ class PaydateCalculator implements PaydateCalculatorInterface {
 
   /**
    * current paydate model.
-   * @var strng
+   * @var string
    */
   protected $paydateModel;
 
@@ -44,11 +44,11 @@ class PaydateCalculator implements PaydateCalculatorInterface {
   protected $validator;
 
   /**
-   * {@inheritdoc}
+   * {@inheritDoc}
    */
   public function __construct(string $paydateModel, array $holidays = []) {
 
-    $this->validator = new UserInputValidator();
+    $this->validator = $this->newUserInputValidator();
 
     $tests = array_filter([
         $this->validator->validatePaydateModel($paydateModel),
@@ -64,41 +64,102 @@ class PaydateCalculator implements PaydateCalculatorInterface {
   }
 
   /**
-   * {@inheritdoc}
+   * {@inheritDoc}
    */
   public function calculatePaydates(string $initialPaydate, int $numberOfPaydates): array {
+    $validator = $this->getValidator();
     $tests = array_filter([
         // this sound more like a clerical error, on that note, assumption made is
         // that the initial pay day is never on an invalid date like a weekend or holiday.
         date('Y-m-d') === $initialPaydate ? 'Initial Pay Day cannot be the same as current day.' : null,
-        $this->validator->validateDate($initialPaydate),
-        $this->validator->validatePositiveInt($numberOfPaydates, 'Number of paydates'),
+        $validator->validateDate($initialPaydate),
+        $validator->validatePositiveInt($numberOfPaydates, 'Number of paydates'),
     ]);
 
     if (!empty($tests)) {
       throw new \InvalidArgumentException("Errors in input:\n" . implode("\n", $tests));
     }
 
-    switch ($this->paydateModel) {
+    $model = $this->newPaydateModelService($this->getPaydateModel());
+
+    return $model->calculatePaydates($initialPaydate, $numberOfPaydates);
+  }
+
+  /**
+   * New instance of validator.
+   * @codeCoverageIgnore 
+   * @return UserInputValidator
+   */
+  protected function newUserInputValidator() {
+    return new UserInputValidator();
+  }
+
+  /**
+   * Creates new pay model handler.
+   * 
+   * Excluded from test or now due to `new` keyword usage.
+   * This is basically a factory method.
+   * 
+   * @codeCoverageIgnore 
+   * 
+   * @param string $schema type of pay model
+   * 
+   * @see DevXyz\Challenge\PaydateCalculatorInterface::PAYDATE_MODEL_* constants.
+   * 
+   * @return PaydateModel\PaydateModelInterface
+   * 
+   * @throws \RuntimeException On unexpected error.
+   */
+  protected function newPaydateModelService(string $schema) {
+
+    switch ($schema) {
 
       case static::PAYDATE_MODEL_MONTHLY:
-        $model = new Monthly($this->holidays);
+
+        $model = new Monthly($this->getHolidays());
         break;
 
       case static::PAYDATE_MODEL_BIWEEKLY:
-        $model = new BiWeekly($this->holidays);
+        $model = new BiWeekly($this->getHolidays());
         break;
 
       case static::PAYDATE_MODEL_WEEKLY:
-        $model = new Weekly($this->holidays);
+        $model = new Weekly($this->getHolidays());
         break;
 
       default:
         // kept in case validator is broken.
-        throw new \InvalidArgumentException('this shouldn\'t be happening.');
+        throw new \RuntimeException('this shouldn\'t be happening.');
     }
 
-    return $model->calculatePaydates($initialPaydate, $numberOfPaydates);
+    return $model;
+  }
+
+  /**
+   * 
+   * @codeCoverageIngore
+   * @return string
+   */
+  public function getPaydateModel(): string {
+    return $this->paydateModel;
+  }
+
+  /**
+   * 
+   * @codeCoverageIgnore
+   * @return array
+   */
+  public function getHolidays(): array {
+    return $this->holidays;
+  }
+
+  /**
+   * 
+   * @codeCoverageIgnore
+   * @return UserInputValidator
+   */
+  protected function getValidator() {
+    return $this->validator;
   }
 
 }
