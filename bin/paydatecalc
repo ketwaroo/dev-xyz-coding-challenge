@@ -1,0 +1,7 @@
+#!/bin/env bash
+
+# might not always work on weirder shells. looking at you macos..
+script_name=$0
+script_full_path=$(dirname "$0")
+
+php "$script_full_path/paydatecalc.php"

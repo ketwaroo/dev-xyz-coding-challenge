@@ -1,0 +1,15 @@
+{
+  "name": "ketwaroo/dev-xyz-coding-challenge",
+  "description": "Coding Challenge for dev.xyz 2022-04-29",
+  "type": "project",
+  "license": "proprietary",
+  "autoload": {
+    "psr-0": {
+      "": "src/"
+    }
+  },
+  "require": {
+    "php": ">=7.0"
+  },
+  "bin": ["bin/paydatecalc"]
+}
