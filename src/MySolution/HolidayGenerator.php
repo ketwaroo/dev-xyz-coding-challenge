@@ -12,7 +12,7 @@ class HolidayGenerator {
    * 
    * @var array
    */
-  protected $holidays;
+  protected $holidays = [];
 
   const HOLIDAY_DEF = [
       'January 01', // new year
@@ -49,7 +49,7 @@ class HolidayGenerator {
 
       $this->holidays[$year] = $init;
     }
-    
+
     return $this->holidays[$year];
   }
 
