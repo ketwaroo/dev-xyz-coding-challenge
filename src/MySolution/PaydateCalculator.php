@@ -4,6 +4,7 @@ namespace MySolution;
 
 use DevXyz\Challenge\PaydateCalculatorInterface;
 use MySolution\HolidayGenerator;
+use MySolution\UserInputValidator;
 use MySolution\PaydateModel\Monthly;
 use MySolution\PaydateModel\BiWeekly;
 use MySolution\PaydateModel\Weekly;
@@ -23,62 +24,142 @@ use MySolution\PaydateModel\Weekly;
  */
 class PaydateCalculator implements PaydateCalculatorInterface {
 
+  /**
+   * current paydate model.
+   * @var string
+   */
   protected $paydateModel;
+
+  /**
+   * List of holidays.
+   * @var array
+   */
   protected $holidays;
 
   /**
-   * {@inheritdoc}
+   * Validator helper.
+   * 
+   * @var UserInputValidator
+   */
+  protected $validator;
+
+  /**
+   * {@inheritDoc}
    */
   public function __construct(string $paydateModel, array $holidays = []) {
 
-    if (!in_array($paydateModel, [
-                static::PAYDATE_MODEL_BIWEEKLY,
-                static::PAYDATE_MODEL_MONTHLY,
-                static::PAYDATE_MODEL_WEEKLY,
-            ])) {
-      throw new \InvalidArgumentException('Unrecognised Paydate Model: ' . $paydateModel);
+    $this->validator = $this->newUserInputValidator();
+
+    $tests = array_filter([
+        $this->validator->validatePaydateModel($paydateModel),
+        $this->validator->validateHolidays($holidays),
+    ]);
+
+    if (!empty($tests)) {
+      throw new \InvalidArgumentException("Errors in input:\n" . implode("\n", $tests));
     }
 
-    if (empty($holidays)) {
-      // @todo would be better to fix interface to make param non optional.
-      throw new \InvalidArgumentException('holidays list is required.');
-    }
-
-    $this->paydateModel = $paydateModel;
+    $this->paydateModel = trim($paydateModel);
     $this->holidays     = $holidays;
   }
 
   /**
-   * {@inheritdoc}
+   * {@inheritDoc}
    */
   public function calculatePaydates(string $initialPaydate, int $numberOfPaydates): array {
+    $validator = $this->getValidator();
+    $tests = array_filter([
+        // this sound more like a clerical error, on that note, assumption made is
+        // that the initial pay day is never on an invalid date like a weekend or holiday.
+        date('Y-m-d') === $initialPaydate ? 'Initial Pay Day cannot be the same as current day.' : null,
+        $validator->validateDate($initialPaydate),
+        $validator->validatePositiveInt($numberOfPaydates, 'Number of paydates'),
+    ]);
 
-    // assuming timezones and whatnot is already squared away at system/ini file level.
-
-    if (date('Y-m-d') === $initialPaydate) {
-      // I know it says "PaydateCalculator must run without generating any errors, warnings or notices."
-      // but there's no case for handling this in the test doc
-      // this sound more like a clerical error, on that note, assumption made is
-      // that the initial pay day is never on an invalid date like a weekend or holiday.
-      // @todo maybe handle past dates.
-      throw new \InvalidArgumentException('Initial Pay Day cannot be the same as current day.');
+    if (!empty($tests)) {
+      throw new \InvalidArgumentException("Errors in input:\n" . implode("\n", $tests));
     }
 
-    switch ($this->paydateModel) {
-      case static::PAYDATE_MODEL_MONTHLY:
-        $model = new Monthly($this->holidays);
-
-        break;
-      case static::PAYDATE_MODEL_BIWEEKLY:
-        $model = new BiWeekly($this->holidays);
-        break;
-      case static::PAYDATE_MODEL_WEEKLY:
-        $model = new Weekly($this->holidays);
-      default:
-        throw new \InvalidArgumentException('this shouldn\'t be happening.');
-    }
+    $model = $this->newPaydateModelService($this->getPaydateModel());
 
     return $model->calculatePaydates($initialPaydate, $numberOfPaydates);
+  }
+
+  /**
+   * New instance of validator.
+   * @codeCoverageIgnore 
+   * @return UserInputValidator
+   */
+  protected function newUserInputValidator() {
+    return new UserInputValidator();
+  }
+
+  /**
+   * Creates new pay model handler.
+   * 
+   * Excluded from test or now due to `new` keyword usage.
+   * This is basically a factory method.
+   * 
+   * @codeCoverageIgnore 
+   * 
+   * @param string $schema type of pay model
+   * 
+   * @see DevXyz\Challenge\PaydateCalculatorInterface::PAYDATE_MODEL_* constants.
+   * 
+   * @return PaydateModel\PaydateModelInterface
+   * 
+   * @throws \RuntimeException On unexpected error.
+   */
+  protected function newPaydateModelService(string $schema) {
+
+    switch ($schema) {
+
+      case static::PAYDATE_MODEL_MONTHLY:
+
+        $model = new Monthly($this->getHolidays());
+        break;
+
+      case static::PAYDATE_MODEL_BIWEEKLY:
+        $model = new BiWeekly($this->getHolidays());
+        break;
+
+      case static::PAYDATE_MODEL_WEEKLY:
+        $model = new Weekly($this->getHolidays());
+        break;
+
+      default:
+        // kept in case validator is broken.
+        throw new \RuntimeException('this shouldn\'t be happening.');
+    }
+
+    return $model;
+  }
+
+  /**
+   * 
+   * @codeCoverageIngore
+   * @return string
+   */
+  public function getPaydateModel(): string {
+    return $this->paydateModel;
+  }
+
+  /**
+   * 
+   * @codeCoverageIgnore
+   * @return array
+   */
+  public function getHolidays(): array {
+    return $this->holidays;
+  }
+
+  /**
+   * 
+   * @codeCoverageIgnore
+   * @return UserInputValidator
+   */
+  protected function getValidator() {
+    return $this->validator;
   }
 
 }

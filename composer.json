@@ -11,5 +11,8 @@
   "require": {
     "php": ">=7.0"
   },
-  "bin": ["bin/paydatecalc"]
+  "bin": ["bin/paydatecalc"],
+  "require-dev": {
+    "phpunit/phpunit": "^9.5"
+  }
 }

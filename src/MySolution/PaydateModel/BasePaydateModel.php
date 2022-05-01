@@ -27,36 +27,33 @@ abstract class BasePaydateModel {
    */
   protected function findNextValidDate($date) {
 
-    $isInitialWeekDay = $this->isDateWeekDay($date);
+    $isWeekDay = $this->isDateWeekDay($date);
     // same deal for holiday, decrement
-    $isInitialHoliday = $this->isHoliDay($date);
-
+    $isHoliday = $this->isHoliDay($date);
+    ;
     // we're fine.
-    if ($isInitialWeekDay && !$isInitialHoliday) {
+    if ($isWeekDay && !$isHoliday) {
       return $date;
     }
 
-    // increment first, even if it's past a holiday
-    if (!$isInitialWeekDay) {
-      // use dark arts to reset to closest next week day
-      $nextDate = $this->wriggleDate($date, '+1 weekday');
-      // don't want a 2 steps forward one step back infinite loop so we keep going forward
-      // this may or may not be a mistaken assumption.
-      while ($this->isHoliDay($nextDate)) {
-        $nextDate = $this->wriggleDate($nextDate, '+1 weekday');
-      }
-      return $nextDate;
+    // determine the general direction 
+    // in edge cases of weekends contigous to a holiday
+    // don't want a 2 steps forward one step back infinite loop so we keep going
+    // in the same direction
+    // this may or may not be a mistaken assumption.
+    if (!$isWeekDay) {
+      $direction = '+1 weekday';
+    }
+    else if ($isHoliday) {
+      $direction = '-1 weekday';
     }
 
-    // similar deal but for holidays, decrement to nearest weekday that isn't a holiday.
-    if ($isInitialHoliday) {
-      // most likely will always be one loop unless holiday calendar changes to have continous dates.
-      do {
-        $nextDate = $this->wriggleDate($date, '-1 weekday');
-      }
-      while ($this->isHoliDay($nextDate));
-      return $nextDate;
+    do {
+      $nextDate = $this->wriggleDate($date, $direction);
     }
+    while ($this->isHoliDay($nextDate) || !$this->isDateWeekDay($nextDate));
+
+    return $nextDate;
   }
 
   /**
@@ -66,7 +63,7 @@ abstract class BasePaydateModel {
    * @return bool
    */
   protected function isDateWeekDay(string $date): bool {
-    return !(in_array(date('w', strtotime($date)), [0, 6], true));
+    return !(in_array((int) date('w', strtotime($date)), [0, 6], true));
   }
 
   /**
